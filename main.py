@@ -1,4 +1,5 @@
 import matplotlib.pyplot as plt
+import threading
 import numpy as numpy
 import sys
 import requests
@@ -6,14 +7,9 @@ import json
 import time
 import pandas as pd
 from matplotlib.pyplot import MultipleLocator
-
 import config
+import taskthread
 
-# x = np.linspace(-1,1,50)
-# y = 2*x+1
-# plt.figure(num=4, figsize=(4,3))
-# plt.plot(x,y, color='red', linewidth=4)
-# plt.show()
 
 argv = sys.argv
 
@@ -22,6 +18,7 @@ print(argv[1])
 _os = ""
 
 token = config.getToken()
+url = config.getUrl()
 
 if(len(argv)>2):
     _os="$os='"+argv[2]+"' and"
@@ -36,7 +33,7 @@ def showResult(slist, helplist):
     dates = [] #日期
     hnums = [] #求助人数
     _i = 0
-    for index,item in enumerate(slist):
+    for item in slist:
         _json = json.loads(item)
         nums.append(_json['num'])
         dates.append(_json['date'])
@@ -64,9 +61,9 @@ def showImage(xs,ys,hs):
     plt.ylim(0,max(xs)+100)
     y_major_locator=MultipleLocator(200)
     x_major_locator=MultipleLocator(len(xs)//30)
-    ax=plt.gca()
-    ax.xaxis.set_major_locator(x_major_locator)
-    ax.yaxis.set_major_locator(y_major_locator)
+    # ax=plt.gca()
+    # ax.xaxis.set_major_locator(x_major_locator)
+    # ax.yaxis.set_major_locator(y_major_locator)
     plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
     plt.title(gstart+"~"+gend, fontsize=20)
     plt.plot(ys,xs, color='green', linewidth=3, label='total')
@@ -81,7 +78,7 @@ def getHelpData(start, end):
     sql = "select count(button_name) as num, date from (select distinct(stu_id), button_name, business, date from events where "+_os+" date between '"+start+"' and '"+end+"') tmp where button_name='求助' and business='优优小班'  group by date order by date;"
     print(sql)
     data = {'format': 'json', 'q': sql}
-    req_url = "https://banmatianxia.cloud.sensorsdata.cn/api/sql/query?token="+token+"&project=production"
+    req_url = "https://"+url+"/api/sql/query?token="+token+"&project=production"
     req_header = {
         'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
     }
@@ -97,7 +94,7 @@ def getData(start, end):
     sql = "select count(distinct(stu_id)) as num, date from events where "+_os+" date between '"+start+"' and '"+end+"' and business='优优小班'   group by date order by date"
     print(sql)
     data = {'format': 'json', 'q': sql}
-    req_url = "https://banmatianxia.cloud.sensorsdata.cn/api/sql/query?token="+token+"&project=production"
+    req_url = "https://"+url+"/api/sql/query?token="+token+"&project=production"
     req_header = {
         'User-Agent':'Mozilla/5.0 (X11; Linux x86_64) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/67.0.3396.99 Safari/537.36',
     }
@@ -108,7 +105,37 @@ def getData(start, end):
 
     return rst
 
+
+def getUserTask(arg):
+    return getData(arg[0], arg[1])
+
+def getHelpTask(arg):
+    return getHelpData(arg[0], arg[1])
+
+
+
+def main():
+    usertask = taskthread.TaskThread(getUserTask, args=[gstart, gend])
+    helptask = taskthread.TaskThread(getHelpTask, args=[gstart, gend])
+    tasklist = [usertask,helptask]
+    usertask.start()
+    helptask.start()
+
+    resultlist = []
+    for task in tasklist:
+        task.join()
+        resultlist.append(task.getresult())
+
+    showResult(resultlist[0], resultlist[1])
+
+
+
+
 if __name__ == "__main__":
-    user = getData(gstart, gend)
-    helplist = getHelpData(gstart, gend)
-    showResult(user, helplist)
+    _sts = int(time.time()*1000)
+    # user = getData(gstart, gend)
+    # helplist = getHelpData(gstart, gend)
+    # showResult(user, helplist)
+    main()
+    print('dur',int(time.time()*1000) - _sts)
+    
