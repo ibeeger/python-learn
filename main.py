@@ -1,5 +1,4 @@
 import matplotlib.pyplot as plt
-import threading
 import numpy as numpy
 import sys
 import requests
@@ -61,9 +60,9 @@ def showImage(xs,ys,hs):
     plt.ylim(0,max(xs)+100)
     y_major_locator=MultipleLocator(200)
     x_major_locator=MultipleLocator(len(xs)//30)
-    # ax=plt.gca()
-    # ax.xaxis.set_major_locator(x_major_locator)
-    # ax.yaxis.set_major_locator(y_major_locator)
+    ax=plt.gca()
+    ax.xaxis.set_major_locator(x_major_locator)
+    ax.yaxis.set_major_locator(y_major_locator)
     plt.subplots_adjust(left=0.05, right=0.95, top=0.9, bottom=0.1)
     plt.title(gstart+"~"+gend, fontsize=20)
     plt.plot(ys,xs, color='green', linewidth=3, label='total')
